@@ -1,0 +1,24 @@
+[
+  {
+    "type": "file",
+    "name": "overview",
+    "label": "Overview"
+  },
+  {
+    "type": "dir",
+    "name": "bridge",
+    "label": "Bridge"
+  },
+  {
+    "type": "dir",
+    "name": "frameworks",
+    "label": "Frameworks",
+    "collapsed": true
+  },
+  {
+    "type": "file",
+    "name": "scenario",
+    "label": "Scenarios",
+    "collapsed": true
+  }
+]

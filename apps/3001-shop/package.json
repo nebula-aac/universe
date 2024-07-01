@@ -4,7 +4,8 @@
   "private": true,
   "dependencies": {
     "acorn": "7.4.1",
-    "antd": "4.24.15",
+    "antd": "5.18.3",
+    "@ant-design/cssinjs": "^1.21.0",
     "buffer": "5.7.1",
     "chrome-trace-event": "1.0.3",
     "encoding": "0.1.13",
@@ -20,7 +21,6 @@
     "react-dom": "18.2.0",
     "schema-utils": "3.3.0",
     "semver": "6.3.1",
-    "styled-jsx": "5.1.2",
     "tapable": "2.2.1",
     "terser-webpack-plugin": "5.3.10",
     "typescript": "5.3.3",

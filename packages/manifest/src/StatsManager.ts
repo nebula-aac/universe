@@ -11,6 +11,7 @@ import {
   Stats,
   StatsAssets,
   moduleFederationPlugin,
+  RemoteEntryType,
 } from '@module-federation/sdk';
 import { Compilation, Compiler, StatsCompilation, StatsModule } from 'webpack';
 import {
@@ -84,7 +85,7 @@ class StatsManager {
 
       assert(remoteEntryNameChunk, 'Can not get remoteEntry chunk!');
       const files = Array.from(remoteEntryNameChunk.files).filter(
-        (f) => !f.includes(HOT_UPDATE_SUFFIX),
+        (f) => !f.includes(HOT_UPDATE_SUFFIX) && !f.endsWith('.css'),
       );
       assert(
         files.length === 1,
@@ -116,13 +117,24 @@ class StatsManager {
         name: getRemoteEntryName(),
         path: '',
         // same as the types supported by runtime, currently only global/var/script is supported
-        type: 'global',
+        type:
+          (this._options?.library?.type as RemoteEntryType | undefined) ||
+          'global',
       },
       types: getTypesMetaInfo(this._options, compiler.context),
       globalName: globalName,
       pluginVersion: this._pluginVersion,
     };
 
+    if (this._options.getPublicPath) {
+      if ('publicPath' in metaData) {
+        delete metaData.publicPath;
+      }
+      return {
+        ...metaData,
+        getPublicPath: this._options.getPublicPath,
+      };
+    }
     return {
       ...metaData,
       publicPath: this.getPublicPath(compiler),
@@ -152,6 +164,9 @@ class StatsManager {
     const { chunks } = compilation;
     const { exposeFileNameImportMap } = this._containerManager;
     const assets: Record<string, StatsAssets> = {};
+    const entryPointNames = [...compilation.entrypoints.values()]
+      .map((e) => e.name)
+      .filter((v) => !!v) as Array<string>;
 
     chunks.forEach((chunk) => {
       if (
@@ -160,13 +175,15 @@ class StatsManager {
       ) {
         // TODO: support multiple import
         const exposeKey = exposeFileNameImportMap[chunk.name][0];
-        assets[getFileNameWithOutExt(exposeKey)] = getAssetsByChunk(chunk);
+        assets[getFileNameWithOutExt(exposeKey)] = getAssetsByChunk(
+          chunk,
+          entryPointNames,
+        );
       }
     });
 
     return assets;
   }
-
   private _getProvideSharedAssets(
     compilation: Compilation,
     stats: StatsCompilation,
@@ -440,9 +457,9 @@ class StatsManager {
       return false;
     } else if (publicPath === 'auto') {
       console.warn(
-        chalk`{bold {yellow [ ${PLUGIN_IDENTIFIER} ]: Manifest will not generate, because publicPath can only be absolute path, but got '${publicPath}'}}`,
+        chalk`{bold {blue [ ${PLUGIN_IDENTIFIER} ]: Manifest will use absolute path resolution via its host at runtime, reason: publicPath='${publicPath}'}}`,
       );
-      return false;
+      return true;
     }
 
     return true;

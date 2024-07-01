@@ -5,7 +5,8 @@
 /tmp
 /out-tsc
 /build
-/@mf-types
+**/@mf-types
+**/@mf-types/**
 /docs
 /.nx
 # dependencies
@@ -54,5 +55,8 @@ apps/**/dist
 !packages/enhanced/test/configCases/**/**/node_modules
 packages/enhanced/test/js
 .ignored
-/.mf
+**/.mf
+**/.mf/**
 
+/apps/manifest-demo/**/@mf-types/
+/apps/manifest-demo/3008-webpack-host/@mf-types/

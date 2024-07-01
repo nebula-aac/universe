@@ -4,6 +4,7 @@ export {
   getDTSManagerConstructor,
   validateOptions,
   retrieveTypesAssetsInfo,
+  isTSProject,
 } from './lib/utils';
 export {
   retrieveOriginalOutDir,
@@ -22,7 +23,7 @@ export {
   UpdateMode,
 } from './constant';
 
-export { DTSManagerOptions } from './interfaces/DTSManagerOptions';
-export { HostOptions } from './interfaces/HostOptions';
-export { RemoteOptions } from './interfaces/RemoteOptions';
+export type { DTSManagerOptions } from './interfaces/DTSManagerOptions';
+export type { HostOptions } from './interfaces/HostOptions';
+export type { RemoteOptions } from './interfaces/RemoteOptions';
 export * as rpc from './rpc/index';

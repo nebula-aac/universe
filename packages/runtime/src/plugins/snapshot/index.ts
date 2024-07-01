@@ -1,7 +1,11 @@
 import { ModuleInfo, getResourceUrl } from '@module-federation/sdk';
-
 import { FederationRuntimePlugin } from '../../type/plugin';
-import { error, isPureRemoteEntry, isRemoteInfoWithEntry } from '../../utils';
+import {
+  error,
+  isBrowserEnv,
+  isPureRemoteEntry,
+  isRemoteInfoWithEntry,
+} from '../../utils';
 import { PreloadOptions, RemoteInfo } from '../../type';
 import { preloadAssets } from '../../utils/preload';
 
@@ -14,7 +18,11 @@ export function assignRemoteInfo(
   }
   const { remoteEntry } = remoteSnapshot;
 
-  const entryUrl = getResourceUrl(remoteSnapshot, remoteEntry);
+  let entryUrl = getResourceUrl(remoteSnapshot, remoteEntry);
+
+  if (!isBrowserEnv() && !entryUrl.startsWith('http')) {
+    entryUrl = `https:${entryUrl}`;
+  }
 
   remoteInfo.type = remoteSnapshot.remoteEntryType;
   remoteInfo.entryGlobalName = remoteSnapshot.globalName;
@@ -46,17 +54,20 @@ export function snapshotPlugin(): FederationRuntimePlugin {
           },
         };
 
-        const assets = await origin.hooks.lifecycle.generatePreloadAssets.emit({
-          origin,
-          preloadOptions,
-          remoteInfo,
-          remote,
-          remoteSnapshot,
-          globalSnapshot,
-        });
+        const assets =
+          await origin.remoteHandler.hooks.lifecycle.generatePreloadAssets.emit(
+            {
+              origin,
+              preloadOptions,
+              remoteInfo,
+              remote,
+              remoteSnapshot,
+              globalSnapshot,
+            },
+          );
 
         if (assets) {
-          preloadAssets(remoteInfo, origin, assets);
+          preloadAssets(remoteInfo, origin, assets, false);
         }
 
         return {

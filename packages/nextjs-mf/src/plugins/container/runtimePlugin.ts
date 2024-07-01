@@ -2,6 +2,19 @@ import { FederationRuntimePlugin } from '@module-federation/runtime/types';
 export default function (): FederationRuntimePlugin {
   return {
     name: 'next-internal-plugin',
+    //@ts-ignore
+    createScript({ url, attrs }) {
+      if (typeof window !== 'undefined') {
+        const script = document.createElement('script');
+        script.src = url;
+        script.async = true;
+        //@ts-ignore
+        delete attrs.crossorigin;
+
+        return { script, timeout: 8000 };
+      }
+      return undefined;
+    },
     errorLoadRemote({ id, error, from, origin }) {
       console.error(id, 'offline');
       const pg = function () {
@@ -80,9 +93,6 @@ export default function (): FederationRuntimePlugin {
       //@ts-ignore
       remote.entry = `${remote?.entry}?t=${Date.now()}`;
       return args;
-    },
-    createScript({ url }) {
-      return;
     },
     afterResolve(args) {
       return args;
@@ -177,6 +187,11 @@ export default function (): FederationRuntimePlugin {
       if (!host) {
         return args;
       }
+
+      if (!host.options.shared[pkgName]) {
+        return args;
+      }
+
       args.resolver = function () {
         shareScopeMap[scope][pkgName][version] =
           host.options.shared[pkgName][0]; // replace local share scope manually with desired module

@@ -3,11 +3,16 @@ import {
   ModuleFederationPluginOptions,
   RspackPluginInstance,
 } from '@rspack/core';
-import { getIdentifier } from './utils';
-import { moduleFederationPlugin } from '@module-federation/sdk';
+import {
+  composeKeyWithSeparator,
+  moduleFederationPlugin,
+} from '@module-federation/sdk';
 import { StatsPlugin } from '@module-federation/manifest';
-import { ContainerManager } from '@module-federation/managers';
+import { ContainerManager, utils } from '@module-federation/managers';
 import { DtsPlugin } from '@module-federation/dts-plugin';
+import ReactBridgePlugin from '@module-federation/bridge-react-webpack-plugin';
+import path from 'node:path';
+import fs from 'node:fs';
 
 type ExcludeFalse<T> = T extends undefined | false ? never : T;
 type SplitChunks = Compiler['options']['optimization']['splitChunks'];
@@ -30,9 +35,13 @@ export class ModuleFederationPlugin implements RspackPluginInstance {
 
   private _patchBundlerConfig(compiler: Compiler): void {
     const { name } = this._options;
-    new compiler.webpack.DefinePlugin({
-      FEDERATION_BUILD_IDENTIFIER: JSON.stringify(getIdentifier(name!)),
-    }).apply(compiler);
+    if (name) {
+      new compiler.webpack.DefinePlugin({
+        FEDERATION_BUILD_IDENTIFIER: JSON.stringify(
+          composeKeyWithSeparator(name, utils.getBuildVersion()),
+        ),
+      }).apply(compiler);
+    }
   }
 
   private _checkSingleton(compiler: Compiler): void {
@@ -102,6 +111,20 @@ export class ModuleFederationPlugin implements RspackPluginInstance {
         // @ts-ignore
       }).apply(compiler);
     }
+
+    // react bridge plugin
+    const nodeModulesPath = path.resolve(compiler.context, 'node_modules');
+    const reactPath = path.join(
+      nodeModulesPath,
+      '@module-federation/bridge-react',
+    );
+
+    // Check whether react exists
+    if (fs.existsSync(reactPath)) {
+      new ReactBridgePlugin({
+        moduleFederationOptions: this._options,
+      }).apply(compiler);
+    }
   }
 
   private _patchChunkSplit(compiler: Compiler, name: string): void {
@@ -136,10 +159,15 @@ export class ModuleFederationPlugin implements RspackPluginInstance {
           }
 
           if (cacheGroup.chunks === 'all') {
-            cacheGroup.chunks = new RegExp(
-              `^(?!.*(${name}|${name}_partial)).*$`,
-              'g',
-            );
+            cacheGroup.chunks = (chunk) => {
+              if (
+                chunk.name &&
+                (chunk.name === name || chunk.name === name + '_partial')
+              ) {
+                return false;
+              }
+              return true;
+            };
             break;
           }
           if (cacheGroup.chunks === 'initial') {

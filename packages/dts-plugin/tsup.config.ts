@@ -1,5 +1,5 @@
-import type { Options } from 'tsup';
 import { join } from 'path';
+import type { Options } from 'tsup';
 
 function generateConfigurations(
   options: Array<[string[] | Record<string, string>, Options]>,
@@ -9,9 +9,10 @@ function generateConfigurations(
     return {
       entry,
       clean: true,
+      tsconfig: join(__dirname, 'tsconfig.json'),
       dts: true,
       legacyOutput: true,
-      outDir: 'packages/dts-plugin/dist',
+      outDir: join('packages', 'dts-plugin', 'dist'),
       external: [join(__dirname, 'package.json')],
       ...config,
     };
@@ -21,19 +22,47 @@ function generateConfigurations(
 export const tsup: Options[] = generateConfigurations([
   [
     {
-      index: join(__dirname, 'src/index.ts'),
-      core: join(__dirname, 'src/core/index.ts'),
-      forkDevWorker: join(__dirname, 'src/dev-worker/forkDevWorker.ts'),
-      startBroker: join(__dirname, 'src/server/broker/startBroker.ts'),
-      forkGenerateDts: join(__dirname, 'src/core/lib/forkGenerateDts.ts'),
+      index: join(__dirname, 'src', 'index.ts'),
+      core: join(__dirname, 'src', 'core', 'index.ts'),
+      'fork-dev-worker': join(
+        __dirname,
+        'src',
+        'dev-worker',
+        'forkDevWorker.ts',
+      ),
+      'start-broker': join(
+        __dirname,
+        'src',
+        'server',
+        'broker',
+        'startBroker.ts',
+      ),
+      'fork-generate-dts': join(
+        __dirname,
+        'src',
+        'core',
+        'lib',
+        'forkGenerateDts.ts',
+      ),
+      'dynamic-remote-type-hints-plugin': join(
+        __dirname,
+        'src',
+        'runtime-plugins',
+        'dynamic-remote-type-hints-plugin.ts',
+      ),
     },
     {
-      format: ['cjs'],
+      format: ['cjs', 'esm'],
     },
   ],
   [
     {
-      'launch-web-client': join(__dirname, 'src/server/launchWebClient.ts'),
+      'launch-web-client': join(
+        __dirname,
+        'src',
+        'server',
+        'launchWebClient.ts',
+      ),
     },
     {
       format: ['iife'],

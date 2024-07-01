@@ -2,6 +2,7 @@ import {
   composeKeyWithSeparator,
   loadScript,
   loadScriptNode,
+  CreateScriptHookReturn,
 } from '@module-federation/sdk';
 import { assert } from '../utils/logger';
 import { getRemoteEntryExports, globalLoading } from '../global';
@@ -41,7 +42,10 @@ export async function loadEntryScript({
   name: string;
   globalName: string;
   entry: string;
-  createScriptHook?: (url: string) => HTMLScriptElement | void;
+  createScriptHook?: (
+    url: string,
+    attrs?: Record<string, any> | undefined,
+  ) => CreateScriptHookReturn;
 }): Promise<RemoteEntryExports> {
   const { entryExports: remoteEntryExports } = getRemoteEntryExports(
     name,
@@ -76,7 +80,7 @@ export async function loadEntryScript({
         return entryExports;
       })
       .catch((e) => {
-        return e;
+        throw e;
       });
   }
 
@@ -100,7 +104,7 @@ export async function loadEntryScript({
       return entryExports;
     })
     .catch((e) => {
-      return e;
+      throw e;
     });
 }
 
@@ -116,7 +120,10 @@ export async function getRemoteEntry({
 }: {
   remoteInfo: RemoteInfo;
   remoteEntryExports?: RemoteEntryExports | undefined;
-  createScriptHook?: (url: string) => HTMLScriptElement | void;
+  createScriptHook?: (
+    url: string,
+    attrs?: Record<string, any> | undefined,
+  ) => CreateScriptHookReturn;
 }): Promise<RemoteEntryExports | void> {
   const { entry, name, type, entryGlobalName } = remoteInfo;
   const uniqueKey = getRemoteEntryUniqueKey(remoteInfo);
@@ -125,7 +132,7 @@ export async function getRemoteEntry({
   }
 
   if (!globalLoading[uniqueKey]) {
-    if (type === 'esm') {
+    if (['esm', 'module'].includes(type)) {
       globalLoading[uniqueKey] = loadEsmEntry({
         entry,
         remoteEntryExports,

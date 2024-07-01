@@ -2,13 +2,11 @@ import chalk from 'chalk';
 import {
   Stats,
   Manifest,
-  ManifestFileName,
   ManifestExpose,
   StatsExpose,
   StatsShared,
   ManifestShared,
   ManifestRemote,
-  simpleJoinRemoteEntry,
   StatsRemote,
   moduleFederationPlugin,
 } from '@module-federation/sdk';
@@ -126,7 +124,9 @@ class ManifestManager {
 
     if (isDev()) {
       console.log(
-        chalk`{bold {greenBright [ ${PLUGIN_IDENTIFIER} ]} {greenBright Manifest Link:} {cyan ${publicPath}${manifestFileName}}}`,
+        chalk`{bold {greenBright [ ${PLUGIN_IDENTIFIER} ]} {greenBright Manifest Link:} {cyan ${
+          publicPath === 'auto' ? '{auto}/' : publicPath
+        }${manifestFileName}}}`,
       );
     }
   }

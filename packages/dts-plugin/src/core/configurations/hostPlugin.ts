@@ -1,4 +1,9 @@
-import { MANIFEST_EXT, parseEntry } from '@module-federation/sdk';
+import {
+  MANIFEST_EXT,
+  parseEntry,
+  ENCODE_NAME_PREFIX,
+  decodeName,
+} from '@module-federation/sdk';
 import { utils } from '@module-federation/managers';
 import { HostOptions, RemoteInfo } from '../interfaces/HostOptions';
 import { validateOptions } from '../lib/utils';
@@ -15,18 +20,15 @@ const defaultOptions = {
 } satisfies Partial<HostOptions>;
 
 const buildZipUrl = (hostOptions: Required<HostOptions>, url: string) => {
-  const remoteUrl = new URL(url);
+  const remoteUrl = new URL(url, 'file:');
 
-  if (remoteUrl.href.includes(MANIFEST_EXT)) {
-    return undefined;
-  }
   const pathnameWithoutEntry = remoteUrl.pathname
     .split('/')
     .slice(0, -1)
     .join('/');
   remoteUrl.pathname = `${pathnameWithoutEntry}/${hostOptions.remoteTypesFolder}.zip`;
 
-  return remoteUrl.href;
+  return remoteUrl.protocol === 'file:' ? remoteUrl.pathname : remoteUrl.href;
 };
 
 const buildApiTypeUrl = (zipUrl?: string) => {
@@ -36,21 +38,26 @@ const buildApiTypeUrl = (zipUrl?: string) => {
   return zipUrl.replace('.zip', '.d.ts');
 };
 
-const retrieveRemoteInfo = (options: {
+export const retrieveRemoteInfo = (options: {
   hostOptions: Required<HostOptions>;
   remoteAlias: string;
   remote: string;
 }): RemoteInfo => {
   const { hostOptions, remoteAlias, remote } = options;
+  let decodedRemote = remote;
+  if (decodedRemote.startsWith(ENCODE_NAME_PREFIX)) {
+    decodedRemote = decodeName(decodedRemote, ENCODE_NAME_PREFIX);
+  }
 
-  const parsedInfo = parseEntry(remote, undefined, '@');
+  const parsedInfo = parseEntry(decodedRemote, undefined, '@');
 
   const url =
     'entry' in parsedInfo
       ? parsedInfo.entry
-      : parsedInfo.name === remote
-      ? remote
+      : parsedInfo.name === decodedRemote
+      ? decodedRemote
       : '';
+
   const zipUrl = url ? buildZipUrl(hostOptions, url) : '';
 
   return {

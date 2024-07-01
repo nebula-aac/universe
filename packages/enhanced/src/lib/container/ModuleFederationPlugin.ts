@@ -4,18 +4,21 @@
 */
 
 'use strict';
-import type { Compiler, WebpackPluginInstance } from 'webpack';
-import { normalizeWebpackPath } from '@module-federation/sdk/normalize-webpack-path';
-import { type moduleFederationPlugin } from '@module-federation/sdk';
-import { StatsPlugin } from '@module-federation/manifest';
-import { ContainerManager } from '@module-federation/managers';
 import { DtsPlugin } from '@module-federation/dts-plugin';
+import { ContainerManager, utils } from '@module-federation/managers';
+import { StatsPlugin } from '@module-federation/manifest';
+import {
+  composeKeyWithSeparator,
+  type moduleFederationPlugin,
+} from '@module-federation/sdk';
+import { normalizeWebpackPath } from '@module-federation/sdk/normalize-webpack-path';
+import type { Compiler, WebpackPluginInstance } from 'webpack';
+import schema from '../../schemas/container/ModuleFederationPlugin';
 import SharePlugin from '../sharing/SharePlugin';
 import ContainerPlugin from './ContainerPlugin';
 import ContainerReferencePlugin from './ContainerReferencePlugin';
-import schema from '../../schemas/container/ModuleFederationPlugin';
 import FederationRuntimePlugin from './runtime/FederationRuntimePlugin';
-import HoistContainerReferencesPlugin from './HoistContainerReferencesPlugin';
+import { RemoteEntryPlugin } from './runtime/RemoteEntryPlugin';
 
 const isValidExternalsType = require(
   normalizeWebpackPath(
@@ -28,7 +31,7 @@ const createSchemaValidation = require(
 ) as typeof import('webpack/lib/util/create-schema-validation');
 const validate = createSchemaValidation(
   // just use schema to validate
-  () => false,
+  () => true,
   () => schema,
   {
     name: 'Module Federation Plugin',
@@ -46,6 +49,20 @@ class ModuleFederationPlugin implements WebpackPluginInstance {
     this._options = options;
   }
 
+  private _patchBundlerConfig(compiler: Compiler): void {
+    const { name } = this._options;
+    const MFPluginNum = compiler.options.plugins.filter(
+      (p) => p && p.name === 'ModuleFederationPlugin',
+    ).length;
+    if (name && MFPluginNum < 2) {
+      new compiler.webpack.DefinePlugin({
+        FEDERATION_BUILD_IDENTIFIER: JSON.stringify(
+          composeKeyWithSeparator(name, utils.getBuildVersion()),
+        ),
+      }).apply(compiler);
+    }
+  }
+
   /**
    * Apply the plugin
    * @param {Compiler} compiler the compiler instance
@@ -53,7 +70,15 @@ class ModuleFederationPlugin implements WebpackPluginInstance {
    */
   apply(compiler: Compiler): void {
     const { _options: options } = this;
-    // @ts-ignore
+    // must before ModuleFederationPlugin
+    if (options.getPublicPath && options.name) {
+      new RemoteEntryPlugin(options.name, options.getPublicPath).apply(
+        compiler,
+      );
+    }
+    if (options.dts !== false) {
+      new DtsPlugin(options).apply(compiler);
+    }
     new FederationRuntimePlugin(options).apply(compiler);
     const library = options.library || { type: 'var', name: options.name };
     const remoteType =
@@ -70,10 +95,9 @@ class ModuleFederationPlugin implements WebpackPluginInstance {
 
     let disableManifest = options.manifest === false;
     if (useContainerPlugin) {
-      // @ts-ignore
-      ContainerPlugin.patchChunkSplit(compiler, this._options.name);
+      ContainerPlugin.patchChunkSplit(compiler, this._options.name!);
     }
-
+    this._patchBundlerConfig(compiler);
     if (!disableManifest && useContainerPlugin) {
       try {
         const containerManager = new ContainerManager();
@@ -88,10 +112,6 @@ class ModuleFederationPlugin implements WebpackPluginInstance {
       }
     }
 
-    if (options.dts !== false) {
-      new DtsPlugin(options).apply(compiler);
-    }
-
     if (
       library &&
       !compiler.options.output.enabledLibraryTypes?.includes(library.type)
@@ -101,16 +121,13 @@ class ModuleFederationPlugin implements WebpackPluginInstance {
     compiler.hooks.afterPlugins.tap('ModuleFederationPlugin', () => {
       if (useContainerPlugin) {
         new ContainerPlugin({
-          //@ts-ignore
-          name: options.name,
+          name: options.name!,
           library,
           filename: options.filename,
           runtime: options.runtime,
           shareScope: options.shareScope,
-          //@ts-ignore
-          exposes: options.exposes,
+          exposes: options.exposes!,
           runtimePlugins: options.runtimePlugins,
-          //@ts-ignore
         }).apply(compiler);
       }
       if (
@@ -120,7 +137,7 @@ class ModuleFederationPlugin implements WebpackPluginInstance {
           : Object.keys(options.remotes).length > 0)
       ) {
         new ContainerReferencePlugin({
-          //@ts-ignore
+          // @ts-expect-error this should not be a string
           remoteType,
           shareScope: options.shareScope,
           remotes: options.remotes,
